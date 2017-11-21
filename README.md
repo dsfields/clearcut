@@ -8,7 +8,7 @@ __Table of Contents__
 * [Log Levels](#log-levels)
 * [API](#api)
   + [Module Interface](#module-interface)
-  + [Method: `createLogger()`](#method-createlogger-options)
+  + [Method: `createLogger()`](#method-createloggeroptions)
   + [Formatters](#formatters)
   + [Class: `Logger`](#class-logger)
 * [Considerations](#considerations)
@@ -73,7 +73,7 @@ The `clearcut` module uses [RFC 5424](https://tools.ietf.org/html/rfc5424) syslo
 
 The `clearcut` module provides a simple interface for creating loggers:
 
-* [`createLogger()`](#method-createLogger-options): a factory method for constructing instances of [`Logger`](#class-logger).
+* [`createLogger()`](#method-createLoggeroptions): a factory method for constructing instances of [`Logger`](#class-logger).
 
 * [`formatters`](#built-in-formatters): a property containing references to all built-in formatters.
 
