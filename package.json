@@ -1,0 +1,45 @@
+{
+  "name": "clearcut",
+  "longName": "Clearcut Logger",
+  "description": "A versatile, high-performance logging library.",
+  "version": "1.0.0",
+  "dependencies": {
+    "elv": "^2.0.0",
+    "json-superstring": "^1.0.0"
+  },
+  "devDependencies": {
+    "chai": "~3.5.0",
+    "eslint": "^4.9.0",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-jsx-a11y": "^6.0.2",
+    "eslint-plugin-react": "^7.4.0",
+    "mocha": "^3.2.0",
+    "nyc": "^10.2.0"
+  },
+  "keywords": [
+    "logging",
+    "logger",
+    "log",
+    "unopinionated",
+    "stream",
+    "streaming",
+    "minimalist",
+    "performat",
+    "high",
+    "performance",
+    "fast"
+  ],
+  "license": "MIT",
+  "main": "./lib",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dsfields/clearcut"
+  },
+  "scripts": {
+    "lint": "eslint ./*",
+    "test": "NODE_ENV=test nyc --reporter=lcov  --reporter=text mocha --recursive ./test/unit",
+    "test:integration": "sh ./test/integration/services/run.sh && NODE_ENV=test nyc --reporter=lcov  --reporter=text mocha ./test/integration"
+  }
+}
