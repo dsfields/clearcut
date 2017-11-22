@@ -211,7 +211,7 @@ console.log(formatter.format(Level.emerg, { foo: 'bar' }));
 
 A formatter is simply an object that implements the interface:
 
-* `formatter(level, ...data)`
+* `format(level, ...data)`
 
   Responsible for turning log data into a single log record.
 
