@@ -1,6 +1,6 @@
 {
   "name": "clearcut",
-  "longName": "Clearcut Logger",
+  "longName": "clearcut",
   "description": "A versatile, high-performance logging library.",
   "version": "1.0.0",
   "dependencies": {
