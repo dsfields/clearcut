@@ -7,7 +7,7 @@ const Level = require('../../lib/level');
 
 describe('Level', function() {
 
-  describe('#isValid', () => {
+  describe('.isValid', () => {
     it('returns true if value 0', function() {
       assert.isTrue(Level.isValid(0));
     });
@@ -78,7 +78,7 @@ describe('Level', function() {
   });
 
 
-  describe('#assert', function() {
+  describe('.assert', function() {
     it('throws if invalid numeric log level', function() {
       assert.throws(() => {
         Level.assert(42);
@@ -107,6 +107,69 @@ describe('Level', function() {
       assert.throws(() => {
         Level.assert({});
       }, TypeError);
+    });
+  });
+
+
+  describe('.valueOf', function() {
+    it('throws if invalid log level', function() {
+      assert.throws(() => {
+        Level.valueOf(42);
+      }, TypeError);
+    });
+
+    it('returns the numeric value if given a numeric', function() {
+      const level = 4;
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, level);
+    });
+
+    it('returns 0 for emerg', function() {
+      const level = 'emerg';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
+    });
+
+    it('returns 0 for alert', function () {
+      const level = 'alert';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
+    });
+
+    it('returns 0 for crit', function () {
+      const level = 'crit';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
+    });
+
+    it('returns 0 for err', function () {
+      const level = 'err';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
+    });
+
+    it('returns 0 for warning', function () {
+      const level = 'warning';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
+    });
+
+    it('returns 0 for notice', function () {
+      const level = 'notice';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
+    });
+
+    it('returns 0 for info', function () {
+      const level = 'info';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
+    });
+
+    it('returns 0 for debug', function () {
+      const level = 'debug';
+      const result = Level.valueOf(level);
+      assert.strictEqual(result, Level[level]);
     });
   });
 
