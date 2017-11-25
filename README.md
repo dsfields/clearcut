@@ -101,7 +101,7 @@ _Arguments_
 
   + `stream`: _(optional)_ the [`Stream`](https://nodejs.org/api/stream.html) object to which log data is written.  If omitted, [`process.stdout`](https://nodejs.org/api/process.html#process_process_stdout) is used.
 
-  + `value`: _(optional)_ an object containing key-value pairs to append to every log record.
+  + `supplement`: _(optional)_ an object containing key-value pairs to append to every log record.
 
 _Returns_
 
@@ -129,7 +129,7 @@ const logger = Clearcut.createLogger({
   },
   maxLevel: Clearcut.Level.debug,     // log debug messages
   stream: logstashSocket,             // send data to a Unix domain socket
-  value: { foo: 'bar' },              // add "foo: 'bar'" eo every log record
+  supplement: { foo: 'bar' },         // add "foo: 'bar'" eo every log record
 });
 ```
 
@@ -140,6 +140,14 @@ Formatters are the brains of `clearcut` loggers.  They contain all logic for ass
 #### Class: `DefaultFormatter`
 
 The default formatter used by `clearcut`.  All log records are JSON strings, and amend the following keys:
+
+* `level`: an integer that represents the log level of the record.
+
+* `occurred`: a date/time stamp that is either an integer representing milliseconds since epoch, or a string in [ISO 8601 Extended](https://www.iso.org/iso-8601-date-and-time-format.html) format.  The format depends on what was specified for the `dateFormat` option on the constructor.
+
+* `pid`: an integer value representing the ID of the current process.
+
+* `v`: an integer representing the version of the log data format.  This is the same value of the constant `DefaultFormatter.LOG_VERSION`.
 
 ##### `new DefaultFormatter([options])`
 
@@ -153,7 +161,7 @@ _Arguments_
 
     - `js`: tells the formatter to use [JavaScript time](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) for all date/time values amended to log records.  This is the default.
 
-    - `iso`: tells the formatter to use [ISO 8601 Extended](https://www.iso.org/iso-8601-date-and-time-format.html) strings for all date/time values amended to log records.
+    - `iso`: tells the formatter to use ISO 8601 Extended strings for all date/time values amended to log records.
 
 _Example_
 
@@ -173,25 +181,19 @@ const logger = Clearcut.createLogger({
 
 An integer value specifying the version number amended to all log records.  The current version is `1`.
 
-##### `DefaultFormatter.prototype.format(level, ...data)`
+##### `DefaultFormatter.prototype.format(level, datas)`
+
+Converts log data into a record to be written to a logger stream.
 
 _Arguments_
 
 * `level`: _(required)_ an integer value representing the level of the log record.
 
-* `...data`: _(required)_ an object containing key-value pairs to be merged into a single log record.
+* `datas`: _(required)_ an array of objects containing key-value pairs to be merged into a single log record.
 
 _Returns_
 
-A string in JSON format.  The stringified JSON object will have the amended fields:
-
-* `level`: an integer value representing the level of the log record.
-
-* `occurred`: an integer representing when the log record was created.  All values are given in milliseconds since epoch (1 January 1970 00:00:00 UTC).
-
-* `pid`: an integer specifying the ID of the current process.
-
-* `v`: the version number of the schema used for log records.  This value is the same as `DefaultFormatter.LOG_VERSION`.
+A string in JSON format.
 
 _Example_
 
@@ -207,11 +209,35 @@ console.log(formatter.format(Level.emerg, { foo: 'bar' }));
 // { "level": 0, "occurred": 1511231899091, "pid": 42, "v": 1, "foo": "bar" }
 ```
 
+##### `DefaultFormatter.prototype.supplement(data)`
+
+Sets supplementary key-value pairs to include in every log record.
+
+_Arguments_
+
+* `data`: _(required)_ an object whose keys and values are to be written to each log record.
+
+_Example_
+
+```js
+const Clearcut = require('clearcut');
+
+const { DefaultFormatter } = Clearcut.formatters;
+const { Level } = Clearcut;
+
+const formatter = new DefaultFormatter();
+
+formatter.supplement({ chips: 'chocolate', nuts: 'macadamia' });
+
+console.log(formatter.format(Level.info, { msg: 'Yum!' }));
+// { "level": 6, "occurred": 1511231899091, "pid": 42, "v": 1, "chips": "chocolate", "nuts": "macadamia", "msg": "Yum!" }
+```
+
 #### Custom
 
 A formatter is simply an object that implements the interface:
 
-* `format(level, ...data)`
+* `format(level, datas)`
 
   Responsible for turning log data into a single log record.
 
@@ -219,30 +245,53 @@ A formatter is simply an object that implements the interface:
 
   + `level`: _(required)_ an integer representing the level of the log record.
 
-  + `...data`: _(required)_ n number of objects containing key-value pairs to be merged into a single log record.
+  + `datas`: _(required)_ an array of objects containing key-value pairs to be merged into a single log record.
 
   _Returns_
 
   A string value representing the log record to be written to the stream.
 
+* `supplement(data)`
+
+  Informs the formatter of additional data to include with every log record.
+
+  _Arguments_
+
+  + `data`: _(required)_ an object whose keys and values are to be written to each log record.
+
 Formatters contain all of the logic for asserting log contracts, and serialization.  They do not have any built-in restrictions, but there are [best practices for creating new formatters](#custom-formatter-behavior).
 
 _Example_
+
+Generally, you would never work directly with a formatter.  The following is here to illustrate its intended behavior.
 
 ```js
 const Clearcut = require('clearcut');
 
 const formatter = {
-  format: (level, ...data) => {
-    let record = Object.assign({ level, foo: 'bar' }), ...data);
+  _supplement: {},
+
+  format: function (level, datas) {
+    let record = Object.assign(
+      { level, foo: 'bar' }),
+      this._supplement,
+      ...datas
+    );
     return JSON.stringify(record);
-  }
+  },
+
+  supplement: function (data) {
+    this._supplement = data;
+  },
 };
 
-const logger = Clearcut.createLogger({ formatter });
+const logger = Clearcut.createLogger({
+  formatter,
+  supplement: { baz: 'qux' },
+});
 
 logger.info({ msg: 'These cookies are delicious!' });
-// { "level": 6, "foo": "bar", "msg": "These cookies are delicious!" }
+// { "level": 6, "foo": "bar", "baz": "qux", "msg": "These cookies are delicious!" }
 ```
 
 ### Enum: `Level`
