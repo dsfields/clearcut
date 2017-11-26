@@ -5,10 +5,9 @@ language: node_js
 sudo: required
 
 node_js:
-  - 4
   - 6
   - 8
 
 before_script: npm install
 
-script: npm test
+script: npm run build
