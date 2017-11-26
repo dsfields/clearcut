@@ -93,7 +93,7 @@ _Arguments_
 
     - `interval` _(optional)_ an integer indicating the number of milliseconds to wait before flushing the buffer to the stream.  This can be used in conjunction with `size` to ensure log data is flushed to the stream in periods where the buffer is not being maxed out, and flushing is not occurring.  If buffering is enabled, the default is `30000` (30 seconds).  If set to `0`, interval flushing is disabled.
 
-    - `size`: _(optional)_ an integer indicating the number of items to buffer before flushing to the stream.  If buffering is enabled, the default is `100`.
+    - `size`: _(optional)_ an integer indicating the size of the buffer in bytes, before the buffer is drained to the stream.  The default is `4096`.  All values are rounded up to the nearest octet.
 
   + `encoding`: _(optional)_ a string specifying the encoding to use when writing data to the stream.  The default is `utf8`.
 
@@ -209,13 +209,13 @@ const { Level } = Clearcut;
 
 const formatter = new DefaultFormatter();
 
-console.log(formatter.format(Level.emerg, { foo: 'bar' }));
+console.log(formatter.format(Level.emerg, [{ foo: 'bar' }]));
 // { "level": 0, "occurred": 1511231899091, "pid": 42, "v": 1, "foo": "bar" }
 ```
 
 ##### `DefaultFormatter.prototype.supplement(data)`
 
-Sets supplementary key-value pairs to include in every log record.
+Sets supplementary key-value pairs to include in every log record.  The `Logger` class calls this method with the value of `options.supplement` when processing options in its constructor.
 
 _Arguments_
 
@@ -233,8 +233,32 @@ const formatter = new DefaultFormatter();
 
 formatter.supplement({ chips: 'chocolate', nuts: 'macadamia' });
 
-console.log(formatter.format(Level.info, { msg: 'Yum!' }));
+console.log(formatter.format(Level.info, [{ msg: 'Yum!' }]));
 // { "level": 6, "occurred": 1511231899091, "pid": 42, "v": 1, "chips": "chocolate", "nuts": "macadamia", "msg": "Yum!" }
+```
+
+##### `DefaultFormatter.prototype.terminate(terminator)`
+
+Sets a string used to append to the end of log records.  The `Logger` class calls this method with the value of `options.buffer.delimiter` when processing buffer options in its constructor.
+
+_Arguments_
+
+* `terminator`: _(required)_ a string to append to the end of each log record.
+
+_Example_
+
+```js
+const Clearcut = require('clearcut');
+
+const { DefaultFormatter } = Clearcut.formatters;
+const { Level } = Clearcut;
+
+const formatter = new DefaultFormatter();
+
+formatter.terminate(',');
+
+console.log(formatter.format(Level.info, [{ msg: 'Cookies!' }]));
+// { "level": 6, "occurred": 1511231899091, "pid": 42, "v": 1, "msg": "Cookies!" },
 ```
 
 #### Custom
@@ -257,11 +281,15 @@ A formatter is simply an object that implements the interface:
 
 * `supplement(data)`
 
-  Informs the formatter of additional data to include with every log record.
+  Informs the formatter of additional data to include with every log record.  The `Logger` class calls this method with the value of `options.supplement` when processing options in its constructor.
 
   _Arguments_
 
   + `data`: _(required)_ an object whose keys and values are to be written to each log record.
+
+* `terminate(terminator)`
+
+  Sets a string used to append to the end of log records.  The `Logger` class calls this method with the value of `options.buffer.delimiter` when processing buffer options in its constructor.
 
 Formatters contain all of the logic for asserting log contracts, and serialization.  They do not have any built-in restrictions, but there are [best practices for creating new formatters](#custom-formatter-behavior).
 
@@ -271,6 +299,7 @@ Generally, you would never work directly with a formatter.  The following is her
 
 ```js
 const Clearcut = require('clearcut');
+const elv = require('elv');
 
 const formatter = {
   _supplement: {},
@@ -281,21 +310,28 @@ const formatter = {
       this._supplement,
       ...datas
     );
-    return JSON.stringify(record);
+    return JSON.stringify(record) + elv.coalesce(this._terminator, '');
   },
 
   supplement: function (data) {
     this._supplement = data;
   },
+
+  terminate: function (terminator) {
+    this._terminator = terminator;
+  }
 };
 
 const logger = Clearcut.createLogger({
+  buffer: {
+    delimiter: ',',
+  },
   formatter,
   supplement: { baz: 'qux' },
 });
 
 logger.info({ msg: 'These cookies are delicious!' });
-// { "level": 6, "foo": "bar", "baz": "qux", "msg": "These cookies are delicious!" }
+// { "level": 6, "foo": "bar", "baz": "qux", "msg": "These cookies are delicious!" },
 ```
 
 ### Enum: `Level`
