@@ -185,6 +185,31 @@ const logger = Clearcut.createLogger({
 
 An integer value specifying the version number amended to all log records.  The current version is `1`.
 
+##### `DefaultFormatter.prototype.clone()`
+
+Make a copy of the formatter instance.  This is called by the `Logger` clause when making child instances.
+
+_Returns_
+
+A new instance of `DefaultFormatter`.
+
+_Example_
+
+```js
+const Clearcut = require('clearcut');
+
+const { DefaultFormatter } = Clearcut.formatters;
+
+const formatter = new DefaultFormatter();
+formatter.supplement({foo: 'bar' });
+
+const cloned = formatter.clone();
+
+// The cloned formatter is basically a copy of the original.  The following
+// method call overwrites its internal supplemental data.
+cloned.supplement({ baz: 'qux' });
+```
+
 ##### `DefaultFormatter.prototype.format(level, datas)`
 
 Converts log data into a record to be written to a logger stream.
@@ -265,6 +290,14 @@ console.log(formatter.format(Level.info, [{ msg: 'Cookies!' }]));
 
 A formatter is simply an object that implements the interface:
 
+* `clone()`
+
+  Make a copy of the formatter instance.  This is called by the `Logger` class when making child instances.
+
+  _Returns_
+
+  A new formatter instance.
+
 * `format(level, datas)`
 
   Responsible for turning log data into a single log record.
@@ -281,7 +314,7 @@ A formatter is simply an object that implements the interface:
 
 * `supplement(data)`
 
-  Informs the formatter of additional data to include with every log record.  The `Logger` class calls this method with the value of `options.supplement` when processing options in its constructor.
+  Informs the formatter of additional data to include with every log record.  The `Logger` class calls this method with the value of `options.supplement` when processing options in its constructor.  This method should overwrite any existing supplemental data.
 
   _Arguments_
 
