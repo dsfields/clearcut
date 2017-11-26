@@ -35,7 +35,8 @@
     "performat",
     "high",
     "performance",
-    "fast"
+    "fast",
+    "syslog"
   ],
   "license": "MIT",
   "main": "./lib",
@@ -45,6 +46,8 @@
     "url": "https://github.com/dsfields/clearcut"
   },
   "scripts": {
+    "bench": "node bechmarks/runall.js",
+    "build": "npm test && npm run lint && npm run bench",
     "lint": "eslint ./*",
     "test": "NODE_ENV=test nyc --reporter=lcov  --reporter=text mocha --recursive ./test/unit"
   }
