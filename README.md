@@ -89,9 +89,13 @@ _Arguments_
 
   + `buffer`: _(optional)_ an object that indicates how the `Logger` instance buffers log data before being written to the stream.  By default, a `Logger` will immediately write to the stream upon receiving log data.  If this the `buffer` key is set, then buffering is enabled.  If enabled, logging performance can be greatly increased, [but there are caveats](#buffering).  This object can have the following properties:
 
-    - `size`: _(optional)_ an integer indicating the number of items to buffer before flushing to the stream.  If buffering is enabled, the default is `100`.
+    - `delimiter`: _(optional)_ a string indicating how buffered records are delimited when written to the stream.  Buffered records are held in memory as a large, concatenated string.  By writing at all records in a single push to the stream, a great amount of latency can be saved.  This option specifies each record is delimited.  The default is `\n`.
 
     - `interval` _(optional)_ an integer indicating the number of milliseconds to wait before flushing the buffer to the stream.  This can be used in conjunction with `size` to ensure log data is flushed to the stream in periods where the buffer is not being maxed out, and flushing is not occurring.  If buffering is enabled, the default is `30000` (30 seconds).  If set to `0`, interval flushing is disabled.
+
+    - `size`: _(optional)_ an integer indicating the number of items to buffer before flushing to the stream.  If buffering is enabled, the default is `100`.
+
+  + `encoding`: _(optional)_ a string specifying the encoding to use when writing data to the stream.  The default is `utf8`.
 
   + `formatter`: _(optional)_ an object containing a `format()` method, which is used to amend and serialize log data before pushing to the stream.  [See below](#formatters) for more information.  If a formatter is set for specific log levels using the `formatters` option, the `formatter` option functions as the default formatter.
 
@@ -561,6 +565,8 @@ The primary use case for the `DEBUG` log level is for tracing application logic 
 ### Buffering
 
 The `clearcut` module's buffering functionality is a powerful tool for increasing logging performance.  By writing data to the stream in fewer but larger chunks, latency is greatly reduced.  The trade off is an increased chance for data loss.  If your Node.js process crashes between flush cycles then any data still in memory, and not pushed to the stream, will be lost.
+
+Buffered records are written as a single string to the stream.  Each record is delimited with, by default, a `\n` character.  This may cause problems with some log aggregators that rely on events to delimit records.
 
 ### Custom Formatter Behavior
 
