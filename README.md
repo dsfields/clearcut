@@ -27,14 +27,16 @@ $ npm install clearcut -S
 Then create loggers using `clearcut`:
 
 ```js
+const Clearcut = require('clearcut');
 const Http = require('http');
 
-const Clearcut = require('clearcut');
-const { ElfFormatter } = require('clearcut-elf'); // extended log format
+const { DefaultFormatter } = Clearcut.formatters;
 
 const requestLogger = Clearcut.createLogger({
   stream: Socket.connect('/logging/logstash.sock'),
-  formatter: new ElfFormatter({ fields: ['time', 'cs-method', 'cs-uri'] }),
+  formatter: DefaultFormatter.create({
+    mode: 'override',
+  }),
   buffer: {
     size: 200,
   },
@@ -97,15 +99,15 @@ _Arguments_
 
   + `encoding`: _(optional)_ a string specifying the encoding to use when writing data to the stream.  The default is `utf8`.
 
-  + `formatter`: _(optional)_ an object containing a `format()` method, which is used to amend and serialize log data before pushing to the stream.  [See below](#formatters) for more information.  If a formatter is set for specific log levels using the `formatters` option, the `formatter` option functions as the default formatter.
+  + `formatter`: _(optional)_ a [Formatter](#formatters) object, which is used to amend and serialize log data before pushing to the stream.  If a formatter is set for specific log levels using the `formatters` option, the `formatter` option functions as the default formatter.
 
-  + `formatters`: _(optional)_ an object whose allowable keys are syslog keywords.  Values are an object containing a `format()` method, which is used to amend and serialize log data for log records with the corresponding log level before pushing to the stream.
+  + `formatters`: _(optional)_ an object whose allowable keys are syslog keywords.  Values are Formatter objects, which is used to amend and serialize log data for log records with the corresponding log level before pushing to the stream.
 
-  + `maxLevel`: _(optional)_ an integer from `0` to `7` indicating the maximum logging level of entries that can be written to the stream.  The default is `6` (INFO).
+  + `maxLevel`: _(optional)_ an integer from `0` to `7` indicating the maximum logging level of records that can be written to the stream.  The default is `6` (INFO).
 
   + `stream`: _(optional)_ the [`Stream`](https://nodejs.org/api/stream.html) object to which log data is written.  If omitted, [`process.stdout`](https://nodejs.org/api/process.html#process_process_stdout) is used.
 
-  + `supplement`: _(optional)_ an object containing key-value pairs to append to every log record.
+  + `supplement`: _(optional)_ an object containing key-value pairs to include in every log record.
 
 _Returns_
 
@@ -115,10 +117,11 @@ _Example_
 
 ```js
 const Clearcut = require('clearcut');
-const KeyValueFormatter = require('clearcut-kv');
 const { Socket } = require('net');
 
-const { DefaultErrorFormatter } = Clearcut.formatters;
+const myCustomErrorFormatter = require('./my-custom-error-formatter');
+
+const { DefaultFormatter } = Clearcut.formatters;
 
 const logstashSocket = Socket.connect('/logging/logstash.sock');
 
@@ -127,9 +130,11 @@ const logger = Clearcut.createLogger({
     size: 500,                        // change the size of the buffer 500
     interval: 60000,                  // ensure buffer is flushed every 60 sec
   },
-  formatter: new KeyValueFormatter(), // use the key-value message formatter
+  formatter: DefaultFormatter.create({
+    mode: 'override',                 // use override mode when stringifying
+  }),
   formatters: {
-    err: new DefaultFormatter(),      // use DefaultFormatter for err
+    err: myCustomErrorFormatter,      // use your own custom formatter for err
   },
   maxLevel: Clearcut.Level.debug,     // log debug messages
   stream: logstashSocket,             // send data to a Unix domain socket
@@ -153,19 +158,65 @@ The default formatter used by `clearcut`.  All log records are JSON strings, and
 
 * `v`: an integer representing the version of the log data format.  This is the same value of the constant `DefaultFormatter.LOG_VERSION`.
 
-##### `new DefaultFormatter([options])`
+##### `DefaultFormatter.DEFAULT_DATE_FORMAT`
 
-The constructor for `DefaultFormatter`.
+A string value representing the default date format to be used on timestamps on log records (`js`).
+
+##### `DefaultFormatter.DEFAULT_MODE`
+
+A string value representing the default stringification and object merge mode (`all`).
+
+##### `DefaultFormatter.LOG_VERSION`
+
+An integer value specifying the version number amended to all log records.  The current version is `1`.
+
+##### `DefaultFormatter.create([options])`
+
+Factory method used to create new instances of `DefaultFormatter`.
 
 _Arguments_
 
-* `options`: _(optional)_ an object with the following properties:
+* `options`: _(optional)_ an object that provides parameters to customize formatting behavior.  This object can have the following keys:
 
-  + `dateFormat`: _(optional)_ a string with following possible values:
+  + `level`: _(optional)_ an object that specifies additional behaviors for the built-in `level` field that is amended to all log records.  This object can have the keys:
 
-    - `js`: tells the formatter to use [JavaScript time](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) for all date/time values amended to log records.  This is the default.
+    - `enabled`: _(optional)_ a Boolean specifying whether or not this field should be amended to all records.  The default is `true`.
 
-    - `iso`: tells the formatter to use ISO 8601 Extended strings for all date/time values amended to log records.
+    - `label`: _(optional)_ a string specifying the name of the key to use in log records.  The default is `level`.
+
+  + `mode`: _(optional)_ a string specifying the merge and stringification mode of objects set to the `format()` method.  Possible values include:
+
+    - `all`: merges every single key and value.  This could potentially result in duplicate keys and their values being writing to the resulting log record.  This is the default mode, and the fastest option for the vast majority of use cases.
+
+    - `override`: the resulting JSON object will have a unique set of keys, with each successive key collision overriding the value of the other.
+
+    - `safe`: prevents JSON objects that have getters that can throw errors or circular references from resulting in errors being thrown during stringification.  This mode also uses the duplicate key behavior found in `override` mode.  This is the safest mode, but by far the slowest.  Only use this mode if you have limited over the data being logged.
+
+  + `occurred`: _(optional)_ an object that specifies additional behaviors for the built-in `occurred` field that is amended to all log records.  This object can have the keys:
+
+    - `dateFormat`: _(optional)_ a string specifying the format to use to use for timestamps.  Possible values are `js` (for [JavaScript time](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) time), `epoch` (for POSIX/unix/epoch time), and `iso` (for ISO 8601 Extended format).  The default is `js`.
+
+    - `enabled`: _(optional)_ a Boolean specifying whether or not this field should be amended to all records.  The default is `true`.
+
+    - `label`: _(optional)_ a string specifying the name of the key to use in log records.  The default is `occurred`.
+
+  + `pid`: _(optional)_ an object that specifies additional behaviors for the built-in `pid` field that is amended to all log records.  This object can have the keys:
+
+    - `enabled`: _(optional)_ a Boolean specifying whether or not this field should be amended to all records.  The default is `true`.
+
+    - `label`: _(optional)_ a string specifying the name of the key to use in log records.  The default is `pid`.
+
+  + `v`: _(optional)_ an object that specifies additional behaviors for the built-in `v` field that is amended to all log records.  This object can have the keys:
+
+    - `enabled`: _(optional)_ a Boolean specifying whether or not this field should be amended to all records.  The default is `true`.
+
+    - `label`: _(optional)_ a string specifying the name of the key to use in log records.  The default is `pid`.
+
+    - `value`: _(optional)_ an integer value specifying the value to use for the log record schema version.  The default is the value of `DefaultFormatter.LOG_VERSION`.
+
+_Returns_
+
+An instance of `DefaultFormatter`.
 
 _Example_
 
@@ -175,15 +226,13 @@ const Clearcut = require('clearcut');
 const { DefaultFormatter } = Clearcut.formatters;
 
 const logger = Clearcut.createLogger({
-  formatter: new DefaultFormatter({
-    dateFormat: 'iso' // use ISO date format for timestamps on log records
+  formatter: DefaultFormatter.create({
+    occurred: {
+      dateFormat: 'iso', // use ISO date format for timestamps on log records
+    },
   }),
 });
 ```
-
-##### `DefaultFormatter.LOG_VERSION`
-
-An integer value specifying the version number amended to all log records.  The current version is `1`.
 
 ##### `DefaultFormatter.prototype.clone()`
 
@@ -200,7 +249,7 @@ const Clearcut = require('clearcut');
 
 const { DefaultFormatter } = Clearcut.formatters;
 
-const formatter = new DefaultFormatter();
+const formatter = DefaultFormatter.create();
 formatter.supplement({foo: 'bar' });
 
 const cloned = formatter.clone();
@@ -232,7 +281,7 @@ const Clearcut = require('clearcut');
 const { DefaultFormatter } = Clearcut.formatters;
 const { Level } = Clearcut;
 
-const formatter = new DefaultFormatter();
+const formatter = DefaultFormatter.create();
 
 console.log(formatter.format(Level.emerg, [{ foo: 'bar' }]));
 // { "level": 0, "occurred": 1511231899091, "pid": 42, "v": 1, "foo": "bar" }
@@ -254,7 +303,7 @@ const Clearcut = require('clearcut');
 const { DefaultFormatter } = Clearcut.formatters;
 const { Level } = Clearcut;
 
-const formatter = new DefaultFormatter();
+const formatter = DefaultFormatter.create();
 
 formatter.supplement({ chips: 'chocolate', nuts: 'macadamia' });
 
@@ -278,7 +327,7 @@ const Clearcut = require('clearcut');
 const { DefaultFormatter } = Clearcut.formatters;
 const { Level } = Clearcut;
 
-const formatter = new DefaultFormatter();
+const formatter = DefaultFormatter.create();
 
 formatter.terminate(',');
 
@@ -385,13 +434,29 @@ An enumeration of all log levels:
 
 The `Logger` class is `clearcut`'s primary application container.  It contains all of the methods and logic for writing log data.
 
+#### `Logger.prototype.encoding`
+
+Gets the encoding used when writing log records to the stream.
+
+#### `Logger.prototype.isBuffering`
+
+Gets a Boolean value this is `true` if buffering is enabled.  Otherwise `false`.
+
 #### `Logger.prototype.isChild`
 
-Gets a Boolean value that is `true` if the `Logger` instance is a child logger.
+Gets a Boolean value that is `true` if the `Logger` instance is a child logger.  Otherwise `false`.
+
+#### `Logger.prototype.maxLevel`
+
+Gets the max log level for the `Logger` instance.
 
 #### `Logger.prototype.parent`
 
 Gets the parent `Logger` instance if it is a child logger.  Otherwise, this property is `null`.
+
+#### `Logger.prototype.stream`
+
+Gets a reference to the Stream to which the Logger writes data.
 
 #### `Logger.prototype.alert(...data)`
 
